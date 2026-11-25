@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<base href="__VALORE_BASE__">
+<meta name="valore-token" content="__VALORE_TOKEN__">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1">
+<title>Valore Doorbell</title>
+<style>
+body {
+    background: #101114;
+    color: white;
+    font-family: -apple-system, sans-serif;
+    margin: 24px;
+}
+main {
+    max-width: 800px;
+    margin: auto;
+}
+img {
+    width: 100%;
+    border-radius: 16px;
+    background: #202124;
+}
+button {
+    padding: 12px 20px;
+    border: 0;
+    border-radius: 10px;
+    margin: 6px;
+    cursor: pointer;
+}
+pre {
+    background: #202124;
+    padding: 16px;
+    border-radius: 12px;
+}
+#talk-button {
+    touch-action: none;
+    user-select: none;
+}
+</style>
+</head>
+<body>
+<main>
+<h1>Valore Doorbell</h1>
+
+<img id="video" alt="Camera preview">
+
+<p>
+<button onclick="startVideo()">Live video</button>
+<button onclick="stopVideo()">Stop</button>
+<button onclick="snapshot()">Snapshot</button>
+<button id="sound-toggle" onclick="toggleSound()" disabled>Mute</button>
+<label>Volume <input id="sound-volume" type="range" min="0" max="100" value="65"></label>
+<span id="sound-status" role="status"></span>
+</p>
+<p id="talk-controls" lang="cs" hidden>
+<button id="mic-button" type="button">Povolit mikrofon</button>
+<button id="talk-button" type="button" disabled>Podržet a mluvit</button>
+<span id="talk-status" role="status"></span>
+</p>
+
+<p><button id="notify-test" type="button" __VALORE_NOTIFY_HIDDEN__>Poslat zkušební oznámení</button>
+<span id="notify-status" role="status"></span></p>
+<pre id="status"></pre>
+
+<script src="./audio.js"></script>
+<script src="./talk.js?v=2"></script>
+<script>
+const video = document.getElementById("video");
+const soundToggle = document.getElementById("sound-toggle");
+const soundStatus = document.getElementById("sound-status");
+const volume = document.getElementById("sound-volume");
+const audio = new DoorbellAudio(message => { soundStatus.textContent = message; }, volume.valueAsNumber / 100);
+const talkButton = document.getElementById("talk-button");
+const talkStatus = document.getElementById("talk-status");
+const talk = typeof DoorbellTalk === "function" ? new DoorbellTalk(message => { talkStatus.textContent = message; }, active => {
+    audio.setVolume(active ? 0 : volume.valueAsNumber / 100);
+}) : null;
+document.getElementById("talk-controls").hidden = !talk;
+document.getElementById("mic-button").addEventListener("click", () => talk?.enableMicrophone());
+volume.addEventListener("input", () => {
+    if (!talk?.press) audio.setVolume(volume.valueAsNumber / 100);
+});
+
+talkButton.addEventListener("pointerdown", event => {
+    if (event.button === 0) {
+        talkButton.setPointerCapture(event.pointerId);
+        talk?.start();
+    }
+});
+for (const event of ["pointerup", "pointercancel", "lostpointercapture"]) {
+    talkButton.addEventListener(event, () => talk?.stop());
+}
+talkButton.addEventListener("keydown", event => {
+    if (event.key === " " || event.key === "Enter") {
+        event.preventDefault();
+        if (!event.repeat) talk?.start();
+    }
+});
+talkButton.addEventListener("keyup", event => {
+    if (event.key === " " || event.key === "Enter") talk?.stop();
+});
+talkButton.addEventListener("blur", () => talk?.stop());
+window.addEventListener("blur", () => { if (talk?.press?.stream) talk.stop(); });
+document.addEventListener("visibilitychange", () => { if (document.hidden) talk?.stop(); });
+
+function startVideo() {
+    video.src = "./stream.mjpg?t=" + Date.now();
+    soundToggle.disabled = false;
+    soundToggle.textContent = "Mute";
+    audio.start();
+}
+
+function stopVideo() {
+    video.removeAttribute("src");
+    talk?.stop();
+    talkButton.disabled = true;
+    audio.stop();
+    soundToggle.disabled = true;
+}
+
+function toggleSound() {
+    if (audio.socket) {
+        audio.stop();
+        soundToggle.textContent = "Enable sound";
+    } else {
+        audio.start();
+        soundToggle.textContent = "Mute";
+    }
+}
+
+function snapshot() {
+    stopVideo();
+    video.src = "./snapshot.jpg?t=" + Date.now();
+}
+
+const notifyButton = document.getElementById("notify-test");
+notifyButton.addEventListener("click", async () => {
+    const status = document.getElementById("notify-status");
+    notifyButton.disabled = true;
+    try {
+        const response = await fetch("./notification-test", {
+            method: "POST",
+            headers: { "X-Valore-Token": document.querySelector('meta[name="valore-token"]').content },
+        });
+        status.textContent = response.ok ? "Home Assistant přijal požadavek." : "Odeslání se nezdařilo.";
+    } catch {
+        status.textContent = "Home Assistant není dostupný.";
+    } finally {
+        notifyButton.disabled = false;
+    }
+});
+
+async function refresh() {
+    try {
+        const res = await fetch("./status");
+        const data = await res.json();
+        talkButton.disabled = !video.hasAttribute("src") || !video.src.includes("/stream.mjpg?") || data.state !== "streaming";
+        if (talkButton.disabled) talk?.stop();
+
+        document.getElementById("status")
+            .textContent = JSON.stringify(data, null, 2);
+    } catch (e) {}
+}
+
+if (!document.hidden) refresh();
+setInterval(() => { if (!document.hidden) refresh(); }, 3000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+
+window.addEventListener("pagehide", stopVideo);
+</script>
+</main>
+</body>
+</html>

@@ -1,0 +1,16 @@
+configuration:
+  tuya_email:
+    name: E-mail účtu Tuya
+    description: Účet, na kterém je spárovaný Valore.
+  tuya_password:
+    name: Heslo účtu Tuya
+    description: Heslo zadávej přímo do konfigurace aplikace.
+  country_code:
+    name: Kód země Tuya
+    description: Pro Česko 420, bez znaménka plus.
+  device_id:
+    name: ID zvonku
+    description: Vyplň, pokud účet Tuya obsahuje více zařízení.
+  notify_service:
+    name: Oznámení na iPhonu
+    description: Akce notify.mobile_app_… z Home Assistantu. Prázdné pole vypne přímá ohlášení.
