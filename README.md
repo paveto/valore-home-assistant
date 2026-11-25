@@ -6,6 +6,10 @@ Při zazvonění může odeslat oznámení do aplikace Home Assistant na iPhonu.
 
 ## Instalace
 
+**Repozitář přidej v Nastavení → Aplikace.** Pokud se zobrazí hlášení
+„Tržiště aplikace neinstaluje“, otevři nabídku **Aplikace** a pokračuj
+podle kroků níže.
+
 1. V Home Assistant OS otevři **Nastavení → Aplikace → Instalovat aplikaci**.
 2. V nabídce **⋮ → Repozitáře** přidej adresu
    `https://github.com/paveto/valore-home-assistant`.
